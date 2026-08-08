@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Smart Dashboard
+Comment=Smart Weather and News Dashboard
+Exec=bash -c 'cd /home/pi/pi-smart-dashboard && /home/pi/pi-smart-dashboard/venv/bin/python3 gui_dashboard.py'
+Icon=/home/pi/pi-smart-dashboard/icon.png
+Terminal=false
+Type=Application
+Categories=Utility;Application;System;
+Path=/home/pi/pi-smart-dashboard
+StartupNotify=false

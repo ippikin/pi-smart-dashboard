@@ -1,0 +1,17 @@
+[Unit]
+Description=Pi Smart Weather and News Dashboard
+After=network.target
+Wants=network-online.target
+
+[Service]
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=/home/pi/.Xauthority
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/pi-smart-dashboard
+ExecStart=/home/pi/pi-smart-dashboard/venv/bin/python3 gui_dashboard.py
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=graphical.target

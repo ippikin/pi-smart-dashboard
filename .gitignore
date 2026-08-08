@@ -1,0 +1,13 @@
+# Local configuration file with location and credentials
+config.json
+
+# Python cache & virtualenv
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# OS & archive files
+.DS_Store
+*.tar.gz
