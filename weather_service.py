@@ -182,6 +182,26 @@ class WeatherService:
         
         ts_d = raw_d["features"][0]["properties"].get("timeSeries", [])
         
+        # Group hourly data by date for hourly breakdown
+        hourly_by_date = {}
+        for h in ts_h:
+            h_time = h.get("time", "")
+            if len(h_time) >= 13:
+                h_date = h_time[:10]
+                h_hour = h_time[11:13] + ":00"
+                if h_date not in hourly_by_date:
+                    hourly_by_date[h_date] = []
+                
+                # Pick 6 intervals per day to fit in popup (06, 09, 12, 15, 18, 21)
+                if h_hour in ["06:00", "09:00", "12:00", "15:00", "18:00", "21:00"]:
+                    h_code = h.get("significantWeatherCode", 1)
+                    h_desc, h_emoji, _ = MET_OFFICE_CODE_MAP.get(h_code, ("Clear", "☀️", "SUNNY"))
+                    hourly_by_date[h_date].append({
+                        "hour": h_hour,
+                        "temp": round(h.get("screenTemperature", 0.0)),
+                        "desc": h_desc
+                    })
+        
         # Fetch astronomy data (sunrise/sunset) from Open-Meteo fallback
         sunrises, sunsets = self._fetch_astronomy_open_meteo()
         
@@ -232,6 +252,7 @@ class WeatherService:
                 "uv_index": uv,
                 "wind_max_mph": wind_max_mph,
                 "wind_dir": wind_dir_str,
+                "hourly": hourly_by_date.get(d_time, [])
             })
 
         top_sunrise = sunrises[0][-5:] if sunrises and len(sunrises) > 0 and sunrises[0] else "--"
@@ -278,6 +299,7 @@ class WeatherService:
             f"latitude={self.latitude}&longitude={self.longitude}"
             f"&current=temperature_2m,relative_humidity_2m,apparent_temperature,"
             f"precipitation,weather_code,wind_speed_10m,wind_direction_10m"
+            f"&hourly=temperature_2m,weather_code"
             f"&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,sunrise,sunset,uv_index_max,wind_speed_10m_max,wind_direction_10m_dominant"
             f"&timezone=Europe%2FLondon"
         )
@@ -287,6 +309,7 @@ class WeatherService:
 
         curr = raw.get("current", {})
         daily = raw.get("daily", {})
+        hourly_data = raw.get("hourly", {})
 
         wcode = curr.get("weather_code", 0)
         curr_precip = curr.get("precipitation", 0.0)
@@ -294,6 +317,28 @@ class WeatherService:
             wcode = 3 # Overcast
 
         desc, emoji, category = WMO_CODE_MAP.get(wcode, ("Unknown", "❓", "UNKNOWN"))
+
+        # Group hourly data
+        h_times = hourly_data.get("time", [])
+        h_temps = hourly_data.get("temperature_2m", [])
+        h_codes = hourly_data.get("weather_code", [])
+        
+        hourly_by_date = {}
+        for idx_h, h_time in enumerate(h_times):
+            if len(h_time) >= 13:
+                h_date = h_time[:10]
+                h_hour = h_time[11:13] + ":00"
+                if h_date not in hourly_by_date:
+                    hourly_by_date[h_date] = []
+                
+                if h_hour in ["06:00", "09:00", "12:00", "15:00", "18:00", "21:00"]:
+                    h_code_val = h_codes[idx_h] if idx_h < len(h_codes) else 0
+                    h_desc, h_emoji, _ = WMO_CODE_MAP.get(h_code_val, ("Clear", "☀️", "SUNNY"))
+                    hourly_by_date[h_date].append({
+                        "hour": h_hour,
+                        "temp": round(h_temps[idx_h]) if idx_h < len(h_temps) else 0,
+                        "desc": h_desc
+                    })
 
         today_str = time.strftime("%Y-%m-%d")
         forecast = []
@@ -339,6 +384,7 @@ class WeatherService:
                 "uv_index": uv_list[idx_raw] if idx_raw < len(uv_list) else 0.0,
                 "wind_max_mph": round(wind_max_list[idx_raw] * 0.621371, 1) if idx_raw < len(wind_max_list) and wind_max_list[idx_raw] else 0.0,
                 "wind_dir": get_wind_direction_str(wind_dir_list[idx_raw]) if idx_raw < len(wind_dir_list) else "N/A",
+                "hourly": hourly_by_date.get(t_val, [])
             })
 
         sunrise_val = sunrise_list[0][-5:] if sunrise_list and sunrise_list[0] else "--"

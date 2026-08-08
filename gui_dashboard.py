@@ -492,7 +492,7 @@ class SmartDashboardApp:
         self.click_zones.append((pygame.Rect(0, 0, self.width, self.height), "CLOSE_POPUP", None))
         
         # 2. Draw Popup Card in center
-        card_w, card_h = 500, 420
+        card_w, card_h = 560, 520
         card_rect = pygame.Rect((self.width - card_w) // 2, (self.height - card_h) // 2, card_w, card_h)
         pygame.draw.rect(self.screen, COLOR_PANEL, card_rect, border_radius=15)
         pygame.draw.rect(self.screen, COLOR_PANEL_BORDER, card_rect, width=2, border_radius=15)
@@ -503,14 +503,14 @@ class SmartDashboardApp:
         
         # Content layout
         day_date_str = f"{day_data.get('day_name', '')}, {day_data.get('date_uk', day_data.get('date', ''))}"
-        self.draw_text(day_date_str, self.font_title, COLOR_GOLD, self.screen, card_rect.centerx, card_rect.y + 35, align="center")
+        self.draw_text(day_date_str, self.font_title, COLOR_GOLD, self.screen, card_rect.centerx, card_rect.y + 30, align="center")
         
         # Large Icon
-        render_weather_icon(self.screen, day_data.get('desc', ''), card_rect.centerx, card_rect.y + 110, size=40)
-        self.draw_text(day_data.get('desc', ''), self.font_header, COLOR_HIGHLIGHT, self.screen, card_rect.centerx, card_rect.y + 165, align="center")
+        render_weather_icon(self.screen, day_data.get('desc', ''), card_rect.centerx, card_rect.y + 100, size=40)
+        self.draw_text(day_data.get('desc', ''), self.font_header, COLOR_HIGHLIGHT, self.screen, card_rect.centerx, card_rect.y + 155, align="center")
         
         # Grid details
-        y_start = card_rect.y + 215
+        y_start = card_rect.y + 205
         x_left = card_rect.x + 40
         x_right = card_rect.centerx + 30
         
@@ -526,6 +526,20 @@ class SmartDashboardApp:
         self.draw_text(f"Wind Dir: {day_data.get('wind_dir', 'N/A')}", self.font_body, COLOR_TEXT_MAIN, self.screen, x_right, y_start + 35)
         self.draw_text(f"Sunrise: {day_data.get('sunrise', '--')}", self.font_body, COLOR_TEXT_MAIN, self.screen, x_right, y_start + 70)
         self.draw_text(f"Sunset: {day_data.get('sunset', '--')}", self.font_body, COLOR_TEXT_MAIN, self.screen, x_right, y_start + 105)
+
+        # Hourly Breakdown
+        hourly = day_data.get("hourly", [])
+        if hourly:
+            pygame.draw.line(self.screen, COLOR_PANEL_BORDER, (card_rect.x + 30, card_rect.y + 395), (card_rect.right - 30, card_rect.y + 395), 1)
+            num_hours = len(hourly)
+            if num_hours > 0:
+                spacing = (card_rect.width - 60) / num_hours
+                start_x = card_rect.x + 30 + (spacing / 2)
+                for h_idx, h_data in enumerate(hourly):
+                    h_x = start_x + (h_idx * spacing)
+                    self.draw_text(h_data.get("hour", "00:00"), self.font_small, COLOR_TEXT_MUTED, self.screen, h_x, card_rect.y + 415, align="center")
+                    render_weather_icon(self.screen, h_data.get("desc", ""), h_x, card_rect.y + 448, size=15)
+                    self.draw_text(f"{h_data.get('temp', 0)}°", self.font_body, COLOR_TEXT_MAIN, self.screen, h_x, card_rect.y + 482, align="center")
 
     def run(self):
         while self.running:
