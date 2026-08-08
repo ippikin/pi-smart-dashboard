@@ -23,7 +23,6 @@ DEFAULT_CONFIG = {
     "latitude": 51.5074,
     "longitude": -0.1278,
     "met_office_api_key": "",
-    "met_office_client_secret": "",
     "refresh_interval_sec": 300,
     "fullscreen": True,
     "rss_feeds": {
@@ -83,8 +82,7 @@ class SmartDashboardApp:
             latitude=lat,
             longitude=lon,
             location_name=loc_name,
-            met_office_api_key=self.config.get("met_office_api_key", ""),
-            met_office_client_secret=self.config.get("met_office_client_secret", "")
+            met_office_api_key=self.config.get("met_office_api_key", "")
         )
         self.news_service = NewsService(
             bbc_url=self.config.get("rss_feeds", {}).get("bbc", "http://feeds.bbci.co.uk/news/rss.xml"),
@@ -271,6 +269,10 @@ class SmartDashboardApp:
         # Clean Location Title
         self.draw_text(self.weather_data.get("location", "Default Location"), self.font_title, COLOR_TEXT_MAIN, self.screen, rect.x + 20, rect.y + 22)
 
+        # Data Source Badge (Top Right of Weather Card)
+        source_name = self.weather_data.get("source", "Unknown")
+        self.draw_text(f"Data: {source_name}", self.font_small, COLOR_TEXT_MUTED, self.screen, rect.right - 20, rect.y + 26, align="right")
+
         # Main Temperature Display & Vector Icon
         temp = self.weather_data.get("temp", "--")
         feels_like = self.weather_data.get("feels_like", "--")
@@ -295,10 +297,19 @@ class SmartDashboardApp:
         wind_dir = self.weather_data.get("wind_direction", "N/A")
         humidity = self.weather_data.get("humidity", "--")
         precip = self.weather_data.get("precipitation", 0.0)
+        
+        forecast_0 = self.weather_data.get("forecast", [{}])[0] if self.weather_data.get("forecast") else {}
+        sunrise = self.weather_data.get("sunrise") or forecast_0.get("sunrise", "--")
+        sunset = self.weather_data.get("sunset") or forecast_0.get("sunset", "--")
 
+        # Left Column
         self.draw_text(f"Wind: {wind_sp} mph ({wind_dir})", self.font_body, COLOR_TEXT_MAIN, self.screen, rect.x + 20, details_y)
         self.draw_text(f"Humidity: {humidity}%", self.font_body, COLOR_TEXT_MAIN, self.screen, rect.x + 20, details_y + 25)
         self.draw_text(f"Precipitation: {precip} mm", self.font_body, COLOR_TEXT_MAIN, self.screen, rect.x + 20, details_y + 50)
+
+        # Right Column
+        self.draw_text(f"Sunrise: {sunrise}", self.font_body, COLOR_TEXT_MAIN, self.screen, rect.x + 290, details_y)
+        self.draw_text(f"Sunset: {sunset}", self.font_body, COLOR_TEXT_MAIN, self.screen, rect.x + 290, details_y + 25)
 
         # 5-Day Forecast Row
         forecast_y = rect.y + 250
