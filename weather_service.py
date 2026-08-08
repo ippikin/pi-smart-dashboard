@@ -80,6 +80,14 @@ MET_OFFICE_CODE_MAP = {
     30: ("Thunderstorm", "⛈️", "THUNDERSTORM"),
 }
 
+def format_uk_date(date_str):
+    """Format YYYY-MM-DD into UK Day Month format: e.g. 8 Aug."""
+    try:
+        struct = time.strptime(date_str[:10], "%Y-%m-%d")
+        return f"{int(time.strftime('%d', struct))} {time.strftime('%b', struct)}"
+    except Exception:
+        return date_str
+
 def get_wind_direction_str(degrees):
     """Convert wind direction in degrees to compass cardinal direction."""
     if degrees is None:
@@ -177,10 +185,20 @@ class WeatherService:
         # Fetch astronomy data (sunrise/sunset) from Open-Meteo fallback
         sunrises, sunsets = self._fetch_astronomy_open_meteo()
         
+        today_str = time.strftime("%Y-%m-%d")
+
         forecast = []
-        for i, entry in enumerate(ts_d[:5]):
+        for entry in ts_d:
             d_time = entry.get("time", "")[:10]
+            if d_time < today_str:
+                continue  # Skip past days (e.g. yesterday)
+
+            i = len(forecast)
+            if i >= 5:
+                break
+
             d_name = self._get_day_name(d_time)
+            d_uk = format_uk_date(d_time)
             
             t_max = round(entry.get("dayMaxScreenTemperature", entry.get("maxScreenAirTemp", 0)))
             t_min = round(entry.get("nightMinScreenTemperature", entry.get("minScreenAirTemp", 0)))
@@ -201,6 +219,7 @@ class WeatherService:
 
             forecast.append({
                 "date": d_time,
+                "date_uk": d_uk,
                 "day_name": d_name,
                 "temp_max": t_max,
                 "temp_min": t_min,
@@ -276,6 +295,7 @@ class WeatherService:
 
         desc, emoji, category = WMO_CODE_MAP.get(wcode, ("Unknown", "❓", "UNKNOWN"))
 
+        today_str = time.strftime("%Y-%m-%d")
         forecast = []
         time_list = daily.get("time", [])
         codes_list = daily.get("weather_code", [])
@@ -289,29 +309,36 @@ class WeatherService:
         wind_max_list = daily.get("wind_speed_10m_max", [])
         wind_dir_list = daily.get("wind_direction_10m_dominant", [])
 
-        for i in range(min(5, len(time_list))):
-            f_code = codes_list[i] if i < len(codes_list) else 0
-            f_pop = pop_list[i] if i < len(pop_list) else 0
-            f_precip_sum = precip_sum_list[i] if i < len(precip_sum_list) else 0.0
+        for idx_raw, t_val in enumerate(time_list):
+            if t_val < today_str:
+                continue
+            i = len(forecast)
+            if i >= 5:
+                break
+                
+            f_code = codes_list[idx_raw] if idx_raw < len(codes_list) else 0
+            f_pop = pop_list[idx_raw] if idx_raw < len(pop_list) else 0
+            f_precip_sum = precip_sum_list[idx_raw] if idx_raw < len(precip_sum_list) else 0.0
             
             if f_code in [51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82] and f_pop < 15 and f_precip_sum < 0.2:
                 f_code = 3  # Overcast
 
             f_desc, f_emoji, _ = WMO_CODE_MAP.get(f_code, ("Clear", "☀️", "SUNNY"))
             forecast.append({
-                "date": time_list[i],
-                "day_name": self._get_day_name(time_list[i]),
-                "temp_max": round(max_temps[i]) if i < len(max_temps) else 0,
-                "temp_min": round(min_temps[i]) if i < len(min_temps) else 0,
+                "date": t_val,
+                "date_uk": format_uk_date(t_val),
+                "day_name": self._get_day_name(t_val),
+                "temp_max": round(max_temps[idx_raw]) if idx_raw < len(max_temps) else 0,
+                "temp_min": round(min_temps[idx_raw]) if idx_raw < len(min_temps) else 0,
                 "pop": f_pop,
                 "precip_sum": f_precip_sum,
                 "desc": f_desc,
                 "emoji": f_emoji,
-                "sunrise": sunrise_list[i][-5:] if i < len(sunrise_list) and sunrise_list[i] else "--",
-                "sunset": sunset_list[i][-5:] if i < len(sunset_list) and sunset_list[i] else "--",
-                "uv_index": uv_list[i] if i < len(uv_list) else 0.0,
-                "wind_max_mph": round(wind_max_list[i] * 0.621371, 1) if i < len(wind_max_list) and wind_max_list[i] else 0.0,
-                "wind_dir": get_wind_direction_str(wind_dir_list[i]) if i < len(wind_dir_list) else "N/A",
+                "sunrise": sunrise_list[idx_raw][-5:] if idx_raw < len(sunrise_list) and sunrise_list[idx_raw] else "--",
+                "sunset": sunset_list[idx_raw][-5:] if idx_raw < len(sunset_list) and sunset_list[idx_raw] else "--",
+                "uv_index": uv_list[idx_raw] if idx_raw < len(uv_list) else 0.0,
+                "wind_max_mph": round(wind_max_list[idx_raw] * 0.621371, 1) if idx_raw < len(wind_max_list) and wind_max_list[idx_raw] else 0.0,
+                "wind_dir": get_wind_direction_str(wind_dir_list[idx_raw]) if idx_raw < len(wind_dir_list) else "N/A",
             })
 
         sunrise_val = sunrise_list[0][-5:] if sunrise_list and sunrise_list[0] else "--"

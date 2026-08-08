@@ -332,12 +332,13 @@ class SmartDashboardApp:
             if is_hover and not self.selected_forecast_day:
                 pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
 
-            # Day Name
-            self.draw_text(day.get("day_name", "Day"), self.font_header, COLOR_GOLD, self.screen, f_rect.centerx, f_rect.y + 14, align="center")
+            # Day Name & UK Date
+            self.draw_text(day.get("day_name", "Day"), self.font_header, COLOR_GOLD, self.screen, f_rect.centerx, f_rect.y + 8, align="center")
+            self.draw_text(day.get("date_uk", ""), self.font_small, COLOR_TEXT_MUTED, self.screen, f_rect.centerx, f_rect.y + 26, align="center")
             
             # Vector Weather Icon inside forecast box
             f_desc = day.get("desc", "")
-            render_weather_icon(self.screen, f_desc, f_rect.centerx, f_rect.y + 48, size=18)
+            render_weather_icon(self.screen, f_desc, f_rect.centerx, f_rect.y + 54, size=18)
 
             # Max / Min Temp
             self.draw_text(f"{day.get('temp_max', 0)}° / {day.get('temp_min', 0)}°", self.font_body, COLOR_TEXT_MAIN, self.screen, f_rect.centerx, f_rect.y + 82, align="center")
@@ -501,7 +502,7 @@ class SmartDashboardApp:
         self.click_zones.append((inner_card_zone, "NONE", None))
         
         # Content layout
-        day_date_str = f"{day_data.get('day_name', '')} {day_data.get('date', '')[-5:]}"
+        day_date_str = f"{day_data.get('day_name', '')}, {day_data.get('date_uk', day_data.get('date', ''))}"
         self.draw_text(day_date_str, self.font_title, COLOR_GOLD, self.screen, card_rect.centerx, card_rect.y + 35, align="center")
         
         # Large Icon
