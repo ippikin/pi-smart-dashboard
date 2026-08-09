@@ -2,6 +2,7 @@
 """
 Live Animated Rain Radar Service for UK Locations.
 Fetches CartoDB base map tiles & RainViewer precipitation overlays.
+Supports smooth digital scaling for zoom levels above RainViewer's max limit (Zoom 7).
 """
 
 import math
@@ -32,14 +33,19 @@ def latlon_to_tile(lat, lon, zoom):
     return xtile, ytile, px, py
 
 class RadarService:
-    def __init__(self, latitude=51.5074, longitude=-0.1278, zoom=7, canvas_w=580, canvas_h=445):
+    def __init__(self, latitude=51.5074, longitude=-0.1278, zoom=8, canvas_w=580, canvas_h=445):
         self.latitude = latitude
         self.longitude = longitude
         self.zoom = zoom
+        
+        # RainViewer API maximum supported tile zoom is 7
+        self.tile_zoom = min(zoom, 7)
+        self.scale_factor = 2.0 ** (zoom - self.tile_zoom)
+        
         self.canvas_w = canvas_w
         self.canvas_h = canvas_h
 
-        self.center_x, self.center_y, self.target_px, self.target_py = latlon_to_tile(latitude, longitude, zoom)
+        self.center_x, self.center_y, self.target_px, self.target_py = latlon_to_tile(latitude, longitude, self.tile_zoom)
 
         self.base_map_surface = None
         self.radar_frames = []  # List of {"time_str": "HH:MM", "surface": pygame.Surface}
@@ -63,12 +69,12 @@ class RadarService:
         grid_surf = pygame.Surface((768, 768))
         grid_surf.fill((15, 20, 28))
 
-        # 3x3 tiles centered on center_x, center_y
+        # 3x3 tiles centered on center_x, center_y at tile_zoom
         for dx in range(-1, 2):
             for dy in range(-1, 2):
                 tx = self.center_x + dx
                 ty = self.center_y + dy
-                url = f"https://basemaps.cartocdn.com/dark_all/{self.zoom}/{tx}/{ty}.png"
+                url = f"https://basemaps.cartocdn.com/dark_all/{self.tile_zoom}/{tx}/{ty}.png"
                 try:
                     raw_data = self._fetch_url_bytes(url)
                     tile_surf = pygame.image.load(io.BytesIO(raw_data))
@@ -82,21 +88,29 @@ class RadarService:
         center_pixel_x = 256 + self.target_px
         center_pixel_y = 256 + self.target_py
 
-        # Crop to canvas_w x canvas_h centered on target point
-        crop_x = max(0, min(768 - self.canvas_w, center_pixel_x - self.canvas_w // 2))
-        crop_y = max(0, min(768 - self.canvas_h, center_pixel_y - self.canvas_h // 2))
+        # Effective unscaled crop window size
+        crop_w = max(100, int(self.canvas_w / self.scale_factor))
+        crop_h = max(100, int(self.canvas_h / self.scale_factor))
 
-        crop_rect = pygame.Rect(crop_x, crop_y, self.canvas_w, self.canvas_h)
-        cropped_surf = pygame.Surface((self.canvas_w, self.canvas_h))
+        crop_x = max(0, min(768 - crop_w, center_pixel_x - crop_w // 2))
+        crop_y = max(0, min(768 - crop_h, center_pixel_y - crop_h // 2))
+
+        crop_rect = pygame.Rect(crop_x, crop_y, crop_w, crop_h)
+        cropped_surf = pygame.Surface((crop_w, crop_h))
         cropped_surf.blit(grid_surf, (0, 0), crop_rect)
 
-        # Store cropped offset so radar layers align perfectly
+        # Smooth scale cropped area to target canvas dimensions
+        scaled_surf = pygame.transform.smoothscale(cropped_surf, (self.canvas_w, self.canvas_h))
+
+        # Store crop offset and target pixel coords on scaled screen
         self.crop_offset_x = crop_x
         self.crop_offset_y = crop_y
-        self.target_screen_x = center_pixel_x - crop_x
-        self.target_screen_y = center_pixel_y - crop_y
+        self.crop_w = crop_w
+        self.crop_h = crop_h
+        self.target_screen_x = int((center_pixel_x - crop_x) * self.scale_factor)
+        self.target_screen_y = int((center_pixel_y - crop_y) * self.scale_factor)
 
-        self.base_map_surface = cropped_surf
+        self.base_map_surface = scaled_surf
         return self.base_map_surface
 
     def fetch_radar_data(self, force_refresh=False):
@@ -130,12 +144,12 @@ class RadarService:
 
                 grid_surf = pygame.Surface((768, 768), pygame.SRCALPHA)
                 
-                # Fetch 3x3 radar tile grid
+                # Fetch 3x3 radar tile grid at tile_zoom (supported by RainViewer)
                 for dx in range(-1, 2):
                     for dy in range(-1, 2):
                         tx = self.center_x + dx
                         ty = self.center_y + dy
-                        tile_url = f"{host}{path}/256/{self.zoom}/{tx}/{ty}/2/1_1.png"
+                        tile_url = f"{host}{path}/256/{self.tile_zoom}/{tx}/{ty}/2/1_1.png"
                         try:
                             t_raw = self._fetch_url_bytes(tile_url)
                             t_surf = pygame.image.load(io.BytesIO(t_raw))
@@ -145,10 +159,13 @@ class RadarService:
                         except Exception:
                             pass
 
-                # Crop to match base map surface
-                frame_surf = pygame.Surface((self.canvas_w, self.canvas_h), pygame.SRCALPHA)
-                crop_rect = pygame.Rect(self.crop_offset_x, self.crop_offset_y, self.canvas_w, self.canvas_h)
-                frame_surf.blit(grid_surf, (0, 0), crop_rect)
+                # Crop to match base map crop rect
+                crop_rect = pygame.Rect(self.crop_offset_x, self.crop_offset_y, self.crop_w, self.crop_h)
+                cropped_frame = pygame.Surface((self.crop_w, self.crop_h), pygame.SRCALPHA)
+                cropped_frame.blit(grid_surf, (0, 0), crop_rect)
+
+                # Smooth scale to canvas dimensions
+                frame_surf = pygame.transform.smoothscale(cropped_frame, (self.canvas_w, self.canvas_h))
 
                 new_frames.append({
                     "time_str": time_str,
@@ -198,29 +215,18 @@ class RadarService:
             
             # Pulse ring
             pulse_r = 10 + int((time.time() * 4) % 6)
-            pygame.draw.circle(surface, (255, 60, 60), (tx, ty), pulse_r, width=1)
-            pygame.draw.circle(surface, (0, 230, 255), (tx, ty), 4)
+            pygame.draw.circle(surface, (255, 60, 60), (tx, ty), pulse_r, width=2)
+            # Center dot
+            pygame.draw.circle(surface, (0, 220, 255), (tx, ty), 5)
+            pygame.draw.circle(surface, (255, 255, 255), (tx, ty), 2)
 
-        # 4. Widget Overlay Title & Time Badge
-        title_font = pygame.font.SysFont("Helvetica", 16, bold=True)
-        small_font = pygame.font.SysFont("Arial", 12)
-
-        overlay_rect = pygame.Rect(rect.x + 10, rect.y + 10, rect.width - 20, 32)
-        pygame.draw.rect(surface, (11, 14, 20, 200), overlay_rect, border_radius=6)
-        pygame.draw.rect(surface, (40, 52, 70), overlay_rect, width=1, border_radius=6)
-
-        title_txt = title_font.render("LIVE RAIN RADAR", True, (0, 180, 216))
-        time_txt = small_font.render(time_label, True, (242, 186, 73))
-
-        surface.blit(title_txt, (rect.x + 20, rect.y + 16))
-        surface.blit(time_txt, (rect.x + rect.width - 20 - time_txt.get_width(), rect.y + 18))
-
-if __name__ == "__main__":
-    pygame.init()
-    pygame.display.set_mode((100, 100))
-    service = RadarService()
-    print("Fetching base map...")
-    service.fetch_base_map()
-    print("Fetching radar animation frames...")
-    service.fetch_radar_data()
-    print(f"Successfully fetched {len(service.radar_frames)} radar animation frames!")
+        # 4. Header Bar
+        font_header = pygame.font.SysFont("Helvetica", 14, bold=True)
+        
+        # Title
+        t_surf = font_header.render("LIVE RAIN RADAR", True, (0, 210, 255))
+        surface.blit(t_surf, (rect.x + 12, rect.y + 10))
+        
+        # Time badge
+        time_surf = font_header.render(time_label, True, (255, 200, 50))
+        surface.blit(time_surf, (rect.right - time_surf.get_width() - 12, rect.y + 10))
