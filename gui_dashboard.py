@@ -91,7 +91,7 @@ class SmartDashboardApp:
         self.radar_service = RadarService(
             latitude=lat,
             longitude=lon,
-            zoom=7,
+            zoom=self.config.get("radar_zoom", 8),
             canvas_w=600,
             canvas_h=580
         )
