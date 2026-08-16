@@ -61,17 +61,45 @@ class RadarService:
         self.cache_ttl_sec = 600  # Refresh radar data every 10 mins
 
     def _filter_low_intensity(self, surf):
-        """Zero out low-intensity cloud and virga pixels below min_alpha threshold."""
+        """
+        Zero out low-intensity cloud, virga, and faint drizzle echoes.
+        Filters by alpha threshold as well as low-reflectivity blue/cyan cloud bands.
+        """
         if self.min_alpha <= 0:
             return surf
         try:
             w, h = surf.get_size()
             raw = pygame.image.tobytes(surf, "RGBA")
             arr = bytearray(raw)
-            # Alpha is the 4th byte of each RGBA pixel
-            for i in range(3, len(arr), 4):
-                if arr[i] < self.min_alpha:
-                    arr[i] = 0
+            
+            # Sensitivity scale based on min_alpha (0..255)
+            # Higher min_alpha (e.g. 100-200) aggressively filters out faint blue/cyan drizzle/clouds
+            filter_clouds = self.min_alpha >= 80
+            filter_light_drizzle = self.min_alpha >= 140
+            
+            for i in range(0, len(arr), 4):
+                r, g, b, a = arr[i], arr[i+1], arr[i+2], arr[i+3]
+                if a == 0:
+                    continue
+                
+                # 1. Standard Alpha transparency check
+                if a < self.min_alpha:
+                    arr[i+3] = 0
+                    continue
+                
+                # 2. Spectral reflectivity filter for low-dBZ blue/cyan cloud echoes (which are fully opaque A=255)
+                # Faint cloud/virga tier: Cyan (B > 180, G > 130, R < 140) and dark muted blues (R == 0, G < 120, B > 100)
+                if filter_clouds:
+                    if (b > 180 and g > 130 and r < 140) or (r == 0 and g < 120 and b > 100):
+                        arr[i+3] = 0
+                        continue
+                
+                # Light drizzle tier: Moderate blues (B > 150, R < 80, G < 170)
+                if filter_light_drizzle:
+                    if b > 150 and r < 80 and g < 170:
+                        arr[i+3] = 0
+                        continue
+                        
             filtered = pygame.image.frombytes(bytes(arr), (w, h), "RGBA")
             if pygame.display.get_surface():
                 filtered = filtered.convert_alpha()
