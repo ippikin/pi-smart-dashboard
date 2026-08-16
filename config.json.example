@@ -2,10 +2,13 @@
   "location_name": "City Name",
   "latitude": 0.0,
   "longitude": 0.0,
-  "met_office_api_key": "",
-  "met_office_client_secret": "",
+  "met_office_api_key": "YOUR_MET_OFFICE_DATAHUB_API_KEY",
   "refresh_interval_sec": 300,
   "fullscreen": true,
+  "radar_zoom": 8,
+  "radar_min_alpha": 85,
+  "radar_smooth": 1,
+  "radar_color_scheme": 2,
   "rss_feeds": {
     "bbc": "http://feeds.bbci.co.uk/news/rss.xml",
     "tvp": "https://www.tvp.info/tvp.info/rss+xml.php"

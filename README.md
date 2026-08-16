@@ -47,7 +47,11 @@ Your local configuration stores your location settings and API keys:
   "longitude": 0.0,
   "met_office_api_key": "YOUR_MET_OFFICE_DATAHUB_API_KEY",
   "refresh_interval_sec": 300,
-  "fullscreen": true
+  "fullscreen": true,
+  "radar_zoom": 8,
+  "radar_min_alpha": 85,
+  "radar_smooth": 1,
+  "radar_color_scheme": 2
 }
 ```
 
