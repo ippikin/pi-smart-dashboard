@@ -11,7 +11,7 @@ Features:
 - 🏷️ **Data Source Indicator**: Dynamic badge indicating live weather provider (`Met Office DataHub` vs `Open-Meteo`).
 - 📰 **BBC News Headlines**: Real-time RSS news ticker for UK news.
 - 🇵🇱 **TVP.info News Headlines**: Real-time RSS news ticker for Polish news.
-- 💡 **Fun General Knowledge & Trivia**: Dedicated tab featuring curated science facts, bizarre trivia, and Wikipedia summaries with an interactive touch button to generate new facts on demand.
+- 💡 **UK General Knowledge & Wikipedia Live Feeds**: Dedicated tab featuring live Wikipedia "Did You Know...", "On This Day in History", dynamic UK category explorers (British Inventions, Castles, Geography, Heritage, Shropshire), and curated British facts with an interactive touch button to generate new facts on demand.
 - 🔒 **Privacy & Config Protection**: `config.json` stores your location and credentials locally and is strictly ignored by `.gitignore`.
 - 🖥️ **Cross-Platform**: Runs seamlessly in windowed or fullscreen mode on macOS and Raspberry Pi OS.
 

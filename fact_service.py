@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
 """
 UK-Centric Fact & General Knowledge Service.
-Fetches British trivia, UK history, science, geography, and Wikipedia British heritage articles.
+Gathers infinite live British history, landmarks, science, and trivia from Wikipedia & curated pools:
+1. Live Wikipedia Category Explorer (British Inventions, Castles, Geography, Heritage, Monuments, Shropshire).
+2. Live Wikipedia "Did You Know..." (DYK) Daily Front-Page Trivia.
+3. Live Wikipedia "On This Day" (OTD) Historical Events for today's date.
+4. Rich Curated UK General Knowledge Pool as instant zero-latency fallback.
 """
 
 import json
 import logging
 import random
+import re
 import urllib.request
 import urllib.parse
 import datetime
@@ -14,9 +19,28 @@ import datetime
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("FactService")
 
-# Rich curated pool of UK & British general knowledge facts
+# Diverse UK categories across Wikipedia for infinite dynamic article discovery
+UK_WIKIPEDIA_CATEGORIES = [
+    ("BRITISH CASTLES", "Category:Castles_in_England"),
+    ("BRITISH CASTLES", "Category:Castles_in_Scotland"),
+    ("BRITISH CASTLES", "Category:Castles_in_Wales"),
+    ("NATIONAL TRUST", "Category:National_Trust_properties_in_England"),
+    ("BRITISH INVENTIONS", "Category:English_inventions"),
+    ("BRITISH INVENTIONS", "Category:Scottish_inventions"),
+    ("BRITISH INVENTIONS", "Category:Welsh_inventions"),
+    ("BRITISH GEOGRAPHY", "Category:Mountains_and_hills_of_the_United_Kingdom"),
+    ("BRITISH GEOGRAPHY", "Category:Rivers_of_England"),
+    ("ANCIENT BRITAIN", "Category:Archaeological_sites_in_England"),
+    ("UK MONUMENTS", "Category:Monuments_and_memorials_in_the_United_Kingdom"),
+    ("LONDON HERITAGE", "Category:Historic_buildings_in_London"),
+    ("LOCAL HERITAGE", "Category:Shropshire"),
+    ("BRITISH SCIENCE", "Category:British_discoveries"),
+    ("BRITISH ASTRONOMY", "Category:Astronomical_observatories_in_the_United_Kingdom"),
+]
+
+# Rich curated pool of verified British trivia and general knowledge
 UK_FACTS_POOL = [
-    # Geography & Landmarks
+    # Geography & Coast
     {"source": "British Geography", "text": "Nowhere in the UK is more than 70 miles (113 km) away from the coast, with Coton in the Elms in Derbyshire being the furthest point inland.", "tag": "BRITISH GEOGRAPHY"},
     {"source": "British Landmarks", "text": "Big Ben is actually the name of the 13.7-tonne Great Bell inside the clock tower at the Palace of Westminster, which is officially named the Elizabeth Tower.", "tag": "LANDMARKS"},
     {"source": "London Heritage", "text": "London Underground is the oldest underground railway network in the world, opening on 10 January 1863 between Paddington and Farringdon.", "tag": "UK HERITAGE"},
@@ -31,7 +55,7 @@ UK_FACTS_POOL = [
     {"source": "British Language", "text": "The town of Llanfairpwllgwyngyllgogerychwyrndrobwllllantysiliogogogoch in Anglesey, Wales, has the longest official place name in the UK with 58 letters.", "tag": "BRITISH TRIVIA"},
     {"source": "British Geography", "text": "Ben Nevis in the Scottish Highlands is the highest mountain in the British Isles, standing at 1,345 metres (4,413 ft) above sea level.", "tag": "BRITISH GEOGRAPHY"},
     {"source": "British Inventions", "text": "The first modern chocolate bar was created in Bristol in 1847 by British chocolatier J.S. Fry & Sons.", "tag": "BRITISH INVENTIONS"},
-    {"source": "British Science", "text": "Isaac Newton discovered the laws of universal gravitation while studying at the University of Cambridge and at his family home in Woolsthorpe Manor, Lincolnshire.", "tag": "BRITISH SCIENCE"},
+    {"source": "British Science", "text": "Isaac Newton discovered the laws of universal gravitation while studying at Cambridge and at Woolsthorpe Manor in Lincolnshire.", "tag": "BRITISH SCIENCE"},
     {"source": "British Inventions", "text": "The steam locomotive was pioneered in the UK by Richard Trevithick in 1804 and George Stephenson with the Stockton and Darlington Railway in 1825.", "tag": "BRITISH INVENTIONS"},
     {"source": "British Heritage", "text": "The Roman Baths in the city of Bath are fed by natural thermal springs that discharge 1,170,000 litres of water at 46°C every single day.", "tag": "UK HERITAGE"},
     {"source": "British Nature", "text": "The Major Oak in Sherwood Forest, Nottinghamshire, is estimated to be between 800 and 1,000 years old and has a canopy circumference of over 28 metres.", "tag": "NATURE & WILDLIFE"},
@@ -47,38 +71,6 @@ UK_FACTS_POOL = [
     {"source": "British Science", "text": "Charles Darwin published 'On the Origin of Species' in 1859 while living and working at Down House in Kent.", "tag": "BRITISH SCIENCE"},
 ]
 
-# Prominent UK Wikipedia topics for live article summary rotation
-UK_WIKIPEDIA_TOPICS = [
-    "Hadrian's_Wall",
-    "Iron_Bridge",
-    "Stonehenge",
-    "Palace_of_Westminster",
-    "Tower_of_London",
-    "Loch_Ness",
-    "Giant's_Causeway",
-    "White_Cliffs_of_Dover",
-    "Ben_Nevis",
-    "Snowdon",
-    "Lake_District_National_Park",
-    "Sherwood_Forest",
-    "Royal_Observatory,_Greenwich",
-    "British_Museum",
-    "Roman_Baths_(Bath)",
-    "Blenheim_Palace",
-    "Edinburgh_Castle",
-    "Caernarfon_Castle",
-    "Conwy_Castle",
-    "Clifton_Suspension_Bridge",
-    "Kew_Gardens",
-    "Jodrell_Bank_Observatory",
-    "Eden_Project",
-    "Peak_District",
-    "Dartmoor",
-    "Isle_of_Skye",
-    "Angel_of_the_North",
-    "Shrewsbury_Castle",
-]
-
 class FactService:
     def __init__(self):
         self.current_fact = random.choice(UK_FACTS_POOL)
@@ -87,38 +79,102 @@ class FactService:
         random.shuffle(self._pool)
         self._pool_idx = 0
 
-    def _fetch_url_json(self, url, headers=None, timeout=5):
-        default_headers = {"User-Agent": "PiSmartDashboard/1.0 (https://github.com/ippikin/pi-smart-dashboard)"}
-        if headers:
-            default_headers.update(headers)
-        req = urllib.request.Request(url, headers=default_headers)
+    def _fetch_url_json(self, url, timeout=5):
+        headers = {"User-Agent": "PiSmartDashboard/1.0 (https://github.com/ippikin/pi-smart-dashboard)"}
+        req = urllib.request.Request(url, headers=headers)
         res = urllib.request.urlopen(req, timeout=timeout).read()
         return json.loads(res.decode("utf-8"))
 
+    def _clean_html_markup(self, text):
+        """Remove any HTML tags and format quotes nicely."""
+        clean = re.sub(r"<[^>]+>", "", text)
+        clean = clean.replace("&quot;", '"').replace("&#039;", "'").replace("&amp;", "&")
+        return clean.strip()
+
     def fetch_new_fact(self):
-        """Fetch a fresh UK-centric general knowledge fact or Wikipedia UK summary."""
+        """Fetch an infinite stream of live UK history, British landmarks, or Wikipedia trivia."""
         self.is_fetching = True
         try:
-            # 50% chance to fetch live Wikipedia summary of notable UK landmarks / heritage
-            if random.random() < 0.5:
-                topic = random.choice(UK_WIKIPEDIA_TOPICS)
-                try:
-                    url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{urllib.parse.quote(topic)}"
-                    data = self._fetch_url_json(url, timeout=4)
-                    title = data.get("title", "")
-                    extract = data.get("extract", "")
-                    if title and extract and len(extract) > 40:
-                        clean_extract = extract if len(extract) < 310 else extract[:307] + "..."
-                        self.current_fact = {
-                            "source": f"Wikipedia: {title}",
-                            "text": clean_extract,
-                            "tag": "BRITISH HERITAGE"
-                        }
-                        return self.current_fact
-                except Exception as e:
-                    logger.debug(f"Wikipedia UK fetch failed: {e}")
+            mode = random.choice(["WIKI_CATEGORY", "WIKI_OTD", "WIKI_DYK", "CURATED_POOL"])
 
-            # Cycle cleanly through the rich curated UK pool
+            # Mode 1: Live Wikipedia UK Category Crawler (Infinite UK Landmarks/Inventions/Castles)
+            if mode == "WIKI_CATEGORY":
+                try:
+                    tag_name, cat_title = random.choice(UK_WIKIPEDIA_CATEGORIES)
+                    cat_url = f"https://en.wikipedia.org/w/api.php?action=query&format=json&list=categorymembers&cmtitle={urllib.parse.quote(cat_title)}&cmlimit=60"
+                    cat_data = self._fetch_url_json(cat_url, timeout=4)
+                    members = [
+                        m["title"] for m in cat_data.get("query", {}).get("categorymembers", [])
+                        if not m["title"].startswith("Category:") and not m["title"].startswith("Template:") and not m["title"].startswith("List of")
+                    ]
+                    if members:
+                        article_title = random.choice(members)
+                        sum_url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{urllib.parse.quote(article_title)}"
+                        sum_data = self._fetch_url_json(sum_url, timeout=4)
+                        extract = sum_data.get("extract", "").strip()
+                        if extract and len(extract) > 40:
+                            clean_extract = extract if len(extract) < 310 else extract[:307] + "..."
+                            self.current_fact = {
+                                "source": f"Wikipedia: {article_title}",
+                                "text": clean_extract,
+                                "tag": tag_name
+                            }
+                            return self.current_fact
+                except Exception as e:
+                    logger.debug(f"Wikipedia Category fetch failed: {e}")
+
+            # Mode 2: Live Wikipedia "On This Day" (Historical Events for today's date)
+            if mode == "WIKI_OTD":
+                try:
+                    now = datetime.datetime.now()
+                    otd_url = f"https://en.wikipedia.org/api/rest_v1/feed/onthisday/events/{now.month}/{now.day}"
+                    otd_data = self._fetch_url_json(otd_url, timeout=4)
+                    events = otd_data.get("events", [])
+                    if events:
+                        ev = random.choice(events[:15])
+                        ev_year = ev.get("year", "")
+                        ev_text = self._clean_html_markup(ev.get("text", ""))
+                        if ev_text:
+                            clean_text = f"In {ev_year}: {ev_text}" if ev_year else ev_text
+                            if len(clean_text) > 310:
+                                clean_text = clean_text[:307] + "..."
+                            self.current_fact = {
+                                "source": f"Wikipedia On This Day ({now.strftime('%d %B')})",
+                                "text": clean_text,
+                                "tag": "ON THIS DAY IN HISTORY"
+                            }
+                            return self.current_fact
+                except Exception as e:
+                    logger.debug(f"Wikipedia OnThisDay fetch failed: {e}")
+
+            # Mode 3: Live Wikipedia "Did You Know..." Front Page Trivia
+            if mode == "WIKI_DYK":
+                try:
+                    now = datetime.datetime.now()
+                    feat_url = f"https://en.wikipedia.org/api/rest_v1/feed/featured/{now.strftime('%Y/%m/%d')}"
+                    feat_data = self._fetch_url_json(feat_url, timeout=4)
+                    dyk_list = feat_data.get("dyk", [])
+                    if isinstance(dyk_list, dict):
+                        dyk_list = dyk_list.get("elements", [])
+                    if dyk_list:
+                        dyk_item = random.choice(dyk_list)
+                        raw_text = dyk_item.get("text", "")
+                        clean_text = self._clean_html_markup(raw_text)
+                        if clean_text.startswith("... that "):
+                            clean_text = "Did you know that " + clean_text[9:]
+                        if clean_text:
+                            if len(clean_text) > 310:
+                                clean_text = clean_text[:307] + "..."
+                            self.current_fact = {
+                                "source": "Wikipedia: Did You Know?",
+                                "text": clean_text,
+                                "tag": "DID YOU KNOW?"
+                            }
+                            return self.current_fact
+                except Exception as e:
+                    logger.debug(f"Wikipedia DYK fetch failed: {e}")
+
+            # Mode 4 / Fallback: Cycle through curated UK general knowledge pool
             self._pool_idx = (self._pool_idx + 1) % len(self._pool)
             if self._pool_idx == 0:
                 random.shuffle(self._pool)
