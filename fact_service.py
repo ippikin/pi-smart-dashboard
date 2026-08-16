@@ -13,16 +13,16 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("FactService")
 
 FALLBACK_FACTS = [
-    {"source": "Science & Space", "text": "The Earth is estimated to be around 4.54 billion years old.", "tag": "🌎 SCIENCE"},
-    {"source": "Did You Know?", "text": "Over 5 billion pizzas are consumed worldwide every single year, with Saturday night being the most popular pizza night.", "tag": "🍕 FUN FACT"},
-    {"source": "Nature & Animals", "text": "Honey never spoils. Archaeologists have found pots of honey in ancient Egyptian tombs that are over 3,000 years old and still perfectly edible.", "tag": "🍯 NATURE"},
-    {"source": "Science & Space", "text": "A day on Venus is longer than a year on Venus. It takes Venus 243 Earth days to rotate once, but only 225 Earth days to orbit the Sun.", "tag": "🪐 SPACE"},
-    {"source": "Nature & Animals", "text": "Octopuses have three hearts and blue blood because it uses copper rather than iron to transport oxygen.", "tag": "🐙 NATURE"},
-    {"source": "Technology & Inventions", "text": "The first computer mouse was invented in 1964 by Douglas Engelbart and was made of wood.", "tag": "💻 TECH"},
-    {"source": "Did You Know?", "text": "Bananas are curved because they grow towards the sun against gravity, a process known as negative geotropism.", "tag": "🍌 FUN FACT"},
-    {"source": "History & Earth", "text": "Cleopatra lived closer in time to the Moon landing than to the construction of the Great Pyramid of Giza.", "tag": "🏛️ HISTORY"},
-    {"source": "Science & Space", "text": "Light from the Sun takes approximately 8 minutes and 20 seconds to reach the Earth.", "tag": "☀️ SCIENCE"},
-    {"source": "Nature & Animals", "text": "Cows have best friends and get stressed when they are separated from them.", "tag": "🐮 NATURE"},
+    {"source": "Science & Space", "text": "The Earth is estimated to be around 4.54 billion years old.", "tag": "SCIENCE"},
+    {"source": "Did You Know?", "text": "Over 5 billion pizzas are consumed worldwide every single year, with Saturday night being the most popular pizza night.", "tag": "FUN FACT"},
+    {"source": "Nature & Animals", "text": "Honey never spoils. Archaeologists have found pots of honey in ancient Egyptian tombs that are over 3,000 years old and still perfectly edible.", "tag": "NATURE"},
+    {"source": "Science & Space", "text": "A day on Venus is longer than a year on Venus. It takes Venus 243 Earth days to rotate once, but only 225 Earth days to orbit the Sun.", "tag": "SPACE"},
+    {"source": "Nature & Animals", "text": "Octopuses have three hearts and blue blood because it uses copper rather than iron to transport oxygen.", "tag": "NATURE"},
+    {"source": "Technology & Inventions", "text": "The first computer mouse was invented in 1964 by Douglas Engelbart and was made of wood.", "tag": "TECH"},
+    {"source": "Did You Know?", "text": "Bananas are curved because they grow towards the sun against gravity, a process known as negative geotropism.", "tag": "FUN FACT"},
+    {"source": "History & Earth", "text": "Cleopatra lived closer in time to the Moon landing than to the construction of the Great Pyramid of Giza.", "tag": "HISTORY"},
+    {"source": "Science & Space", "text": "Light from the Sun takes approximately 8 minutes and 20 seconds to reach the Earth.", "tag": "SCIENCE"},
+    {"source": "Nature & Animals", "text": "Cows have best friends and get stressed when they are separated from them.", "tag": "NATURE"},
 ]
 
 class FactService:
@@ -50,7 +50,7 @@ class FactService:
                     self.current_fact = {
                         "source": "General Knowledge",
                         "text": text,
-                        "tag": "💡 GENERAL KNOWLEDGE"
+                        "tag": "GENERAL KNOWLEDGE"
                     }
                     return self.current_fact
             except Exception as e:
@@ -66,7 +66,7 @@ class FactService:
                     self.current_fact = {
                         "source": f"Wikipedia: {title}",
                         "text": clean_extract,
-                        "tag": "📚 WIKIPEDIA"
+                        "tag": "WIKIPEDIA"
                     }
                     return self.current_fact
             except Exception as e:

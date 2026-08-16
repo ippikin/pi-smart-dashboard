@@ -31,8 +31,8 @@ Features:
 
 ## 🎮 Controls & Touch Shortcuts
 
-- **Touch / Click Tabs**: Toggle between `Combined View`, `Weather & Radar`, `BBC News`, `TVP Info`, `💡 Fun Facts`, and `Refresh`.
-- **`✨ Generate New Fact` / `Space` / `N` key**: Fetch and display a fresh general knowledge fact or Wikipedia summary.
+- **Touch / Click Tabs**: Toggle between `Combined View`, `Weather & Radar`, `BBC News`, `TVP Info`, `Fun Facts`, and `Refresh`.
+- **`Generate New Fact` / `Space` / `N` key**: Fetch and display a fresh general knowledge fact or Wikipedia summary.
 - **Forecast Days**: Tap any day in the 5-day forecast row to open an interactive detailed weather modal with an hour-by-hour breakdown.
 - **`R` key**: Manually trigger live news & weather refresh.
 - **`F` key**: Toggle Fullscreen.

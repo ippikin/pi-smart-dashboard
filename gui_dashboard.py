@@ -233,7 +233,7 @@ class SmartDashboardApp:
             ("WEATHER", "Weather & Radar"),
             ("BBC", "BBC News"),
             ("TVP", "TVP Info"),
-            ("FACTS", "💡 Fun Facts"),
+            ("FACTS", "Fun Facts"),
             ("REFRESH", "Refresh")
         ]
 
@@ -286,47 +286,46 @@ class SmartDashboardApp:
         # Main Temperature Display & Vector Icon
         temp = self.weather_data.get("temp", "--")
         feels_like = self.weather_data.get("feels_like", "--")
+        
+        # Large Temp
+        self.draw_text(f"{temp} °C", self.font_temp_large, COLOR_GOLD, self.screen, rect.x + 20, rect.y + 70)
+        
+        # Weather Vector Icon + Condition text
         desc = self.weather_data.get("description", "Loading...")
-        category = self.weather_data.get("category", "UNKNOWN")
+        render_weather_icon(self.screen, desc, rect.x + 230, rect.y + 98, size=32)
+        self.draw_text(desc, self.font_header, COLOR_HIGHLIGHT, self.screen, rect.x + 265, rect.y + 82)
+        self.draw_text(f"Feels like {feels_like} °C", self.font_small, COLOR_TEXT_MUTED, self.screen, rect.x + 265, rect.y + 112)
 
-        temp_rect = self.draw_text(f"{temp} °C", self.font_temp_large, COLOR_GOLD, self.screen, rect.x + 20, rect.y + 68)
+        # 2-Column Weather Details Grid
+        details_y = rect.y + 175
+        col1_x = rect.x + 20
+        col2_x = rect.x + 230
+        line_spacing = 24
+        
+        # Left Column: Wind, Humidity, Precipitation
+        wind_speed = self.weather_data.get("wind_speed_mph", "--")
+        wind_dir = self.weather_data.get("wind_direction", "")
+        self.draw_text(f"Wind: {wind_speed} mph ({wind_dir})", self.font_body, COLOR_TEXT_MAIN, self.screen, col1_x, details_y)
 
-        # Render Weather Vector Graphics Icon right next to Temperature
-        icon_cx = temp_rect.right + 45
-        icon_cy = rect.y + 100
-        render_weather_icon(self.screen, category, icon_cx, icon_cy, size=30)
-
-        # Condition & Feels Like
-        text_x = icon_cx + 45
-        self.draw_text(desc, self.font_header, COLOR_HIGHLIGHT, self.screen, text_x, rect.y + 86)
-        self.draw_text(f"Feels like {feels_like} °C", self.font_body, COLOR_TEXT_MUTED, self.screen, text_x, rect.y + 112)
-
-        # Weather Details Grid
-        details_y = rect.y + 160
-        wind_sp = self.weather_data.get("wind_speed_mph", "--")
-        wind_dir = self.weather_data.get("wind_direction", "N/A")
         humidity = self.weather_data.get("humidity", "--")
-        precip = self.weather_data.get("precipitation", 0.0)
-        
-        forecast_0 = self.weather_data.get("forecast", [{}])[0] if self.weather_data.get("forecast") else {}
-        sunrise = self.weather_data.get("sunrise") or forecast_0.get("sunrise", "--")
-        sunset = self.weather_data.get("sunset") or forecast_0.get("sunset", "--")
+        self.draw_text(f"Humidity: {humidity}%", self.font_body, COLOR_TEXT_MAIN, self.screen, col1_x, details_y + line_spacing)
 
-        # Left Column
-        self.draw_text(f"Wind: {wind_sp} mph ({wind_dir})", self.font_body, COLOR_TEXT_MAIN, self.screen, rect.x + 20, details_y)
-        self.draw_text(f"Humidity: {humidity}%", self.font_body, COLOR_TEXT_MAIN, self.screen, rect.x + 20, details_y + 25)
-        self.draw_text(f"Precipitation: {precip} mm", self.font_body, COLOR_TEXT_MAIN, self.screen, rect.x + 20, details_y + 50)
+        precip = self.weather_data.get("precipitation", "--")
+        self.draw_text(f"Precipitation: {precip} mm", self.font_body, COLOR_TEXT_MAIN, self.screen, col1_x, details_y + line_spacing * 2)
 
-        # Right Column
-        self.draw_text(f"Sunrise: {sunrise}", self.font_body, COLOR_TEXT_MAIN, self.screen, rect.x + 290, details_y)
-        self.draw_text(f"Sunset: {sunset}", self.font_body, COLOR_TEXT_MAIN, self.screen, rect.x + 290, details_y + 25)
+        # Right Column: Sunrise and Sunset
+        sunrise = self.weather_data.get("sunrise", "--")
+        self.draw_text(f"Sunrise: {sunrise}", self.font_body, COLOR_TEXT_MAIN, self.screen, col2_x, details_y)
 
-        # 5-Day Forecast Row
-        forecast_y = rect.y + 250
-        self.draw_text("5-DAY OUTLOOK", self.font_header, COLOR_ACCENT, self.screen, rect.x + 20, forecast_y)
-        
+        sunset = self.weather_data.get("sunset", "--")
+        self.draw_text(f"Sunset: {sunset}", self.font_body, COLOR_TEXT_MAIN, self.screen, col2_x, details_y + line_spacing)
+
+        # 5-Day Forecast Row Header
+        forecast_y = rect.y + 258
+        self.draw_text("5-DAY OUTLOOK", self.font_header, COLOR_HIGHLIGHT, self.screen, rect.x + 20, forecast_y)
+
         forecast = self.weather_data.get("forecast", [])
-        box_w = (rect.width - 40 - (len(forecast) - 1) * 10) // max(1, len(forecast)) if forecast else 100
+        box_w = 96
         
         mouse_pos = pygame.mouse.get_pos()
         for idx, day in enumerate(forecast):
@@ -361,39 +360,37 @@ class SmartDashboardApp:
         pygame.draw.rect(self.screen, COLOR_PANEL, rect, border_radius=10)
         pygame.draw.rect(self.screen, COLOR_PANEL_BORDER, rect, width=2, border_radius=10)
 
-        tag_rect = pygame.Rect(rect.x + 20, rect.y + 15, 12, 24)
-        pygame.draw.rect(self.screen, tag_color, tag_rect, border_radius=3)
-        self.draw_text(title, self.font_header, COLOR_TEXT_MAIN, self.screen, rect.x + 40, rect.y + 15)
+        # Header Title with colored tag
+        pygame.draw.rect(self.screen, tag_color, (rect.x + 20, rect.y + 20, 6, 20), border_radius=2)
+        self.draw_text(title, self.font_header, COLOR_TEXT_MAIN, self.screen, rect.x + 35, rect.y + 18)
 
-        start_y = rect.y + 48
-        item_h = 74
-        max_items = (rect.height - 45) // item_h
-        
+        if not articles:
+            self.draw_text("Loading headlines...", self.font_body, COLOR_TEXT_MUTED, self.screen, rect.x + 35, rect.y + 60)
+            return
+
+        # Calculate space per item
+        avail_h = rect.height - 60
+        num_items = min(len(articles), 4)
+        item_h = avail_h // num_items
+
+        max_desc_len = 110 if rect.width > 800 else 60
+
         mouse_pos = pygame.mouse.get_pos()
-
-        for idx, item in enumerate(articles[:max_items]):
-            item_y = start_y + idx * item_h
-            item_rect = pygame.Rect(rect.x + 5, item_y, rect.width - 10, item_h)
+        for idx in range(num_items):
+            item = articles[idx]
+            item_y = rect.y + 55 + idx * item_h
             
-            # Interactive Hover Effect
+            item_rect = pygame.Rect(rect.x + 10, item_y, rect.width - 20, item_h - 4)
             is_hover = self.mouse_active and pygame.mouse.get_focused() and item_rect.collidepoint(mouse_pos)
-            if is_hover and item.get("link"):
+            
+            if is_hover:
                 pygame.draw.rect(self.screen, COLOR_HOVER, item_rect, border_radius=6)
                 pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
-            
-            # Separator line if not hovered
-            if not is_hover and idx < max_items - 1:
-                pygame.draw.line(self.screen, COLOR_PANEL_BORDER, (rect.x + 20, item_y + item_h - 2), (rect.x + rect.width - 20, item_y + item_h - 2), 1)
-            
-            pygame.draw.circle(self.screen, tag_color, (rect.x + 28, item_y + 16), 4)
-
-            # Dynamic text length calculation based on landscape panel width
-            max_title_len = max(60, int((rect.width - 55) / 7.5))
-            max_desc_len = max(80, int((rect.width - 180) / 6.0))
 
             art_title = item.get("title", "")
-            if len(art_title) > max_title_len:
-                art_title = art_title[:max_title_len - 3] + "..."
+            # Bullet point indicator
+            bullet_color = tag_color if is_hover else COLOR_GOLD
+            pygame.draw.circle(self.screen, bullet_color, (rect.x + 25, item_y + 16), 4)
             
             # Change title color on hover
             title_color = COLOR_GOLD if is_hover else COLOR_TEXT_MAIN
@@ -461,8 +458,8 @@ class SmartDashboardApp:
 
         fact = self.fact_service.current_fact
 
-        # Header Badge & Title
-        tag_text = fact.get("tag", "💡 GENERAL KNOWLEDGE")
+        # Header Badge & Title (clean text without broken font glyphs)
+        tag_text = fact.get("tag", "GENERAL KNOWLEDGE")
         self.draw_text(tag_text, self.font_header, COLOR_GOLD, self.screen, content_rect.x + 35, content_rect.y + 35)
 
         source_text = fact.get("source", "Knowledge Feed")
@@ -476,9 +473,10 @@ class SmartDashboardApp:
         pygame.draw.rect(self.screen, (15, 20, 28), quote_rect, border_radius=10)
         pygame.draw.rect(self.screen, (35, 48, 65), quote_rect, width=1, border_radius=10)
 
-        # Large quotation mark icon
+        # Large quotation mark icon (Opening “ and Closing ”)
         font_quote = pygame.font.SysFont("Helvetica", 72, bold=True)
         self.draw_text("“", font_quote, (50, 70, 95), self.screen, quote_rect.x + 25, quote_rect.y + 20)
+        self.draw_text("”", font_quote, (50, 70, 95), self.screen, quote_rect.right - 45, quote_rect.bottom - 60)
 
         # Multi-line wrapped text for fact
         fact_text = fact.get("text", "Loading general knowledge fact...")
@@ -501,8 +499,8 @@ class SmartDashboardApp:
         for line_idx, line in enumerate(lines):
             self.draw_text(line, self.font_fact_body, COLOR_TEXT_MAIN, self.screen, quote_rect.centerx, y_text_start + line_idx * 40, align="center")
 
-        # Action Button: "✨ Generate New Fact"
-        btn_w, btn_h = 320, 52
+        # Action Button: "Generate New Fact" (Clean text without broken emoji rendering)
+        btn_w, btn_h = 280, 52
         btn_rect = pygame.Rect(content_rect.centerx - btn_w // 2, content_rect.bottom - 75, btn_w, btn_h)
         
         mouse_pos = pygame.mouse.get_pos()
@@ -515,7 +513,7 @@ class SmartDashboardApp:
         if is_hover:
             pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
 
-        btn_label = "⏳ Fetching Fact..." if self.fact_service.is_fetching else "✨ Generate New Fact"
+        btn_label = "Fetching Fact..." if self.fact_service.is_fetching else "Generate New Fact"
         self.draw_text(btn_label, self.font_header, (255, 255, 255), self.screen, btn_rect.centerx, btn_rect.centery, align="center")
 
         self.click_zones.append((btn_rect, "NEW_FACT", None))
