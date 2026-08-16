@@ -33,10 +33,13 @@ def latlon_to_tile(lat, lon, zoom):
     return xtile, ytile, px, py
 
 class RadarService:
-    def __init__(self, latitude=51.5074, longitude=-0.1278, zoom=8, canvas_w=580, canvas_h=445):
+    def __init__(self, latitude=51.5074, longitude=-0.1278, zoom=8, color_scheme=2, smooth=1, min_alpha=85, canvas_w=580, canvas_h=445):
         self.latitude = latitude
         self.longitude = longitude
         self.zoom = zoom
+        self.color_scheme = color_scheme
+        self.smooth = smooth
+        self.min_alpha = min_alpha  # Filter out radar pixels with alpha below this threshold (suppressing faint non-precipitating clouds)
         
         # RainViewer API maximum supported tile zoom is 7
         self.tile_zoom = min(zoom, 7)
@@ -56,6 +59,26 @@ class RadarService:
         self.is_fetching = False
         self.last_update_time = 0
         self.cache_ttl_sec = 600  # Refresh radar data every 10 mins
+
+    def _filter_low_intensity(self, surf):
+        """Zero out low-intensity cloud and virga pixels below min_alpha threshold."""
+        if self.min_alpha <= 0:
+            return surf
+        try:
+            w, h = surf.get_size()
+            raw = pygame.image.tobytes(surf, "RGBA")
+            arr = bytearray(raw)
+            # Alpha is the 4th byte of each RGBA pixel
+            for i in range(3, len(arr), 4):
+                if arr[i] < self.min_alpha:
+                    arr[i] = 0
+            filtered = pygame.image.frombytes(bytes(arr), (w, h), "RGBA")
+            if pygame.display.get_surface():
+                filtered = filtered.convert_alpha()
+            return filtered
+        except Exception as e:
+            logger.warning(f"Error filtering radar intensity: {e}")
+            return surf
 
     def _fetch_url_bytes(self, url):
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"})
@@ -149,7 +172,7 @@ class RadarService:
                     for dy in range(-1, 2):
                         tx = self.center_x + dx
                         ty = self.center_y + dy
-                        tile_url = f"{host}{path}/256/{self.tile_zoom}/{tx}/{ty}/2/1_1.png"
+                        tile_url = f"{host}{path}/256/{self.tile_zoom}/{tx}/{ty}/{self.color_scheme}/{self.smooth}_1.png"
                         try:
                             t_raw = self._fetch_url_bytes(tile_url)
                             t_surf = pygame.image.load(io.BytesIO(t_raw))
@@ -164,8 +187,11 @@ class RadarService:
                 cropped_frame = pygame.Surface((self.crop_w, self.crop_h), pygame.SRCALPHA)
                 cropped_frame.blit(grid_surf, (0, 0), crop_rect)
 
+                # Filter out faint, non-precipitating cloud/virga pixels
+                filtered_frame = self._filter_low_intensity(cropped_frame)
+
                 # Smooth scale to canvas dimensions
-                frame_surf = pygame.transform.smoothscale(cropped_frame, (self.canvas_w, self.canvas_h))
+                frame_surf = pygame.transform.smoothscale(filtered_frame, (self.canvas_w, self.canvas_h))
 
                 new_frames.append({
                     "time_str": time_str,

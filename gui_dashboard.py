@@ -92,6 +92,9 @@ class SmartDashboardApp:
             latitude=lat,
             longitude=lon,
             zoom=self.config.get("radar_zoom", 8),
+            color_scheme=self.config.get("radar_color_scheme", 2),
+            smooth=self.config.get("radar_smooth", 1),
+            min_alpha=self.config.get("radar_min_alpha", 85),
             canvas_w=600,
             canvas_h=580
         )
