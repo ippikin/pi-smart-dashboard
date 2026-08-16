@@ -11,6 +11,7 @@ Features:
 - 🏷️ **Data Source Indicator**: Dynamic badge indicating live weather provider (`Met Office DataHub` vs `Open-Meteo`).
 - 📰 **BBC News Headlines**: Real-time RSS news ticker for UK news.
 - 🇵🇱 **TVP.info News Headlines**: Real-time RSS news ticker for Polish news.
+- 💡 **Fun General Knowledge & Trivia**: Dedicated tab featuring curated science facts, bizarre trivia, and Wikipedia summaries with an interactive touch button to generate new facts on demand.
 - 🔒 **Privacy & Config Protection**: `config.json` stores your location and credentials locally and is strictly ignored by `.gitignore`.
 - 🖥️ **Cross-Platform**: Runs seamlessly in windowed or fullscreen mode on macOS and Raspberry Pi OS.
 
@@ -30,7 +31,8 @@ Features:
 
 ## 🎮 Controls & Touch Shortcuts
 
-- **Touch / Click Tabs**: Toggle between `Combined View`, `Weather & Radar`, `BBC News`, `TVP Info`, and `Refresh`.
+- **Touch / Click Tabs**: Toggle between `Combined View`, `Weather & Radar`, `BBC News`, `TVP Info`, `💡 Fun Facts`, and `Refresh`.
+- **`✨ Generate New Fact` / `Space` / `N` key**: Fetch and display a fresh general knowledge fact or Wikipedia summary.
 - **Forecast Days**: Tap any day in the 5-day forecast row to open an interactive detailed weather modal with an hour-by-hour breakdown.
 - **`R` key**: Manually trigger live news & weather refresh.
 - **`F` key**: Toggle Fullscreen.

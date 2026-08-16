@@ -15,6 +15,7 @@ import pygame
 from weather_service import WeatherService
 from news_service import NewsService
 from radar_service import RadarService
+from fact_service import FactService
 from weather_icons import render_weather_icon, draw_refresh_icon
 
 CONFIG_FILE = "config.json"
@@ -72,6 +73,8 @@ class SmartDashboardApp:
         self.font_body = pygame.font.SysFont("Arial", 16)
         self.font_small = pygame.font.SysFont("Arial", 13)
         self.font_temp_large = pygame.font.SysFont("Helvetica", 58, bold=True)
+        self.font_fact_body = pygame.font.SysFont("Helvetica", 24)
+        self.font_fact_source = pygame.font.SysFont("Arial", 16, italic=True)
 
         lat = self.config.get("latitude", 51.5074)
         lon = self.config.get("longitude", -0.1278)
@@ -98,12 +101,13 @@ class SmartDashboardApp:
             canvas_w=600,
             canvas_h=580
         )
+        self.fact_service = FactService()
 
         self.weather_data = {}
         self.bbc_articles = []
         self.tvp_articles = []
         
-        self.active_tab = "COMBINED"  # Options: COMBINED, WEATHER, BBC, TVP
+        self.active_tab = "COMBINED"  # Options: COMBINED, WEATHER, BBC, TVP, FACTS
         self.is_loading = True
         self.status_message = "Updating..."
         self.running = True
@@ -229,10 +233,11 @@ class SmartDashboardApp:
             ("WEATHER", "Weather & Radar"),
             ("BBC", "BBC News"),
             ("TVP", "TVP Info"),
+            ("FACTS", "💡 Fun Facts"),
             ("REFRESH", "Refresh")
         ]
 
-        tab_width = 220
+        tab_width = 190
         start_x = 20
         spacing = 15
         
@@ -248,6 +253,8 @@ class SmartDashboardApp:
             bg_color = COLOR_BUTTON_ACTIVE if is_active else COLOR_BUTTON_INACTIVE
             if tab_key == "REFRESH":
                 bg_color = (40, 70, 90)
+            elif tab_key == "FACTS" and is_active:
+                bg_color = (180, 110, 20)
                 
             if is_hover and not is_active:
                 bg_color = (min(255, bg_color[0]+20), min(255, bg_color[1]+20), min(255, bg_color[2]+20))
@@ -437,6 +444,82 @@ class SmartDashboardApp:
         content_rect = pygame.Rect(20, 120, self.width - 40, self.height - 140)
         self.draw_news_panel(content_rect, title, articles, tag_color)
 
+    def trigger_new_fact(self):
+        """Fetch a new fact in a background thread."""
+        def task():
+            self.status_message = "Finding fact..."
+            self.fact_service.fetch_new_fact()
+            self.status_message = f"Updated {time.strftime('%H:%M')}"
+        threading.Thread(target=task, daemon=True).start()
+
+    def draw_facts_view(self):
+        content_rect = pygame.Rect(20, 120, self.width - 40, self.height - 140)
+        
+        # Outer Card Container
+        pygame.draw.rect(self.screen, COLOR_PANEL, content_rect, border_radius=12)
+        pygame.draw.rect(self.screen, COLOR_PANEL_BORDER, content_rect, width=2, border_radius=12)
+
+        fact = self.fact_service.current_fact
+
+        # Header Badge & Title
+        tag_text = fact.get("tag", "💡 GENERAL KNOWLEDGE")
+        self.draw_text(tag_text, self.font_header, COLOR_GOLD, self.screen, content_rect.x + 35, content_rect.y + 35)
+
+        source_text = fact.get("source", "Knowledge Feed")
+        self.draw_text(f"Source: {source_text}", self.font_fact_source, COLOR_HIGHLIGHT, self.screen, content_rect.right - 35, content_rect.y + 38, align="right")
+
+        # Horizontal separator line
+        pygame.draw.line(self.screen, COLOR_PANEL_BORDER, (content_rect.x + 35, content_rect.y + 75), (content_rect.right - 35, content_rect.y + 75), 1)
+
+        # Fact Content Box with decorative card
+        quote_rect = pygame.Rect(content_rect.x + 35, content_rect.y + 105, content_rect.width - 70, 310)
+        pygame.draw.rect(self.screen, (15, 20, 28), quote_rect, border_radius=10)
+        pygame.draw.rect(self.screen, (35, 48, 65), quote_rect, width=1, border_radius=10)
+
+        # Large quotation mark icon
+        font_quote = pygame.font.SysFont("Helvetica", 72, bold=True)
+        self.draw_text("“", font_quote, (50, 70, 95), self.screen, quote_rect.x + 25, quote_rect.y + 20)
+
+        # Multi-line wrapped text for fact
+        fact_text = fact.get("text", "Loading general knowledge fact...")
+        words = fact_text.split()
+        lines = []
+        current_line = []
+        max_chars_per_line = 65
+
+        for word in words:
+            if sum(len(w) for w in current_line) + len(current_line) + len(word) <= max_chars_per_line:
+                current_line.append(word)
+            else:
+                lines.append(" ".join(current_line))
+                current_line = [word]
+        if current_line:
+            lines.append(" ".join(current_line))
+
+        # Render lines centered vertically in quote box
+        y_text_start = quote_rect.y + (quote_rect.height - (len(lines) * 40)) // 2 + 10
+        for line_idx, line in enumerate(lines):
+            self.draw_text(line, self.font_fact_body, COLOR_TEXT_MAIN, self.screen, quote_rect.centerx, y_text_start + line_idx * 40, align="center")
+
+        # Action Button: "✨ Generate New Fact"
+        btn_w, btn_h = 320, 52
+        btn_rect = pygame.Rect(content_rect.centerx - btn_w // 2, content_rect.bottom - 75, btn_w, btn_h)
+        
+        mouse_pos = pygame.mouse.get_pos()
+        is_hover = self.mouse_active and pygame.mouse.get_focused() and btn_rect.collidepoint(mouse_pos)
+        btn_bg = (210, 130, 25) if is_hover else (180, 105, 18)
+
+        pygame.draw.rect(self.screen, btn_bg, btn_rect, border_radius=8)
+        pygame.draw.rect(self.screen, COLOR_GOLD, btn_rect, width=2, border_radius=8)
+
+        if is_hover:
+            pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
+
+        btn_label = "⏳ Fetching Fact..." if self.fact_service.is_fetching else "✨ Generate New Fact"
+        self.draw_text(btn_label, self.font_header, (255, 255, 255), self.screen, btn_rect.centerx, btn_rect.centery, align="center")
+
+        self.click_zones.append((btn_rect, "NEW_FACT", None))
+
     def handle_events(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -450,6 +533,9 @@ class SmartDashboardApp:
                     pygame.display.toggle_fullscreen()
                 elif event.key == pygame.K_r:
                     self.trigger_manual_refresh()
+                elif event.key in (pygame.K_SPACE, pygame.K_n):
+                    if self.active_tab == "FACTS":
+                        self.trigger_new_fact()
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 pos = event.pos
                 # Evaluate from top-most to bottom-most (reverse order of drawing)
@@ -460,6 +546,8 @@ class SmartDashboardApp:
                                 self.trigger_manual_refresh()
                             else:
                                 self.active_tab = action_data
+                        elif action_type == "NEW_FACT":
+                            self.trigger_new_fact()
                         elif action_type == "LINK":
                             try:
                                 webbrowser.open(action_data)
@@ -564,6 +652,8 @@ class SmartDashboardApp:
                 self.draw_full_news_view("BBC NEWS HEADLINES (UK)", self.bbc_articles, COLOR_BBC)
             elif self.active_tab == "TVP":
                 self.draw_full_news_view("TVP.INFO HEADLINES (POLAND)", self.tvp_articles, COLOR_TVP)
+            elif self.active_tab == "FACTS":
+                self.draw_facts_view()
 
             self.draw_forecast_popup()
             self.handle_events()
