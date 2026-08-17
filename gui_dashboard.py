@@ -288,18 +288,19 @@ class SmartDashboardApp:
         feels_like = self.weather_data.get("feels_like", "--")
         
         # Large Temp
-        self.draw_text(f"{temp} °C", self.font_temp_large, COLOR_GOLD, self.screen, rect.x + 20, rect.y + 70)
+        temp_rect = self.draw_text(f"{temp} °C", self.font_temp_large, COLOR_GOLD, self.screen, rect.x + 20, rect.y + 70)
         
-        # Weather Vector Icon + Condition text
+        # Weather Vector Icon + Condition text (positioned safely to the right of temp text)
         desc = self.weather_data.get("description", "Loading...")
-        render_weather_icon(self.screen, desc, rect.x + 230, rect.y + 98, size=32)
-        self.draw_text(desc, self.font_header, COLOR_HIGHLIGHT, self.screen, rect.x + 265, rect.y + 82)
-        self.draw_text(f"Feels like {feels_like} °C", self.font_small, COLOR_TEXT_MUTED, self.screen, rect.x + 265, rect.y + 112)
+        icon_cx = max(rect.x + 285, temp_rect.right + 35)
+        render_weather_icon(self.screen, desc, icon_cx, rect.y + 98, size=32)
+        self.draw_text(desc, self.font_header, COLOR_HIGHLIGHT, self.screen, icon_cx + 38, rect.y + 82)
+        self.draw_text(f"Feels like {feels_like} °C", self.font_small, COLOR_TEXT_MUTED, self.screen, icon_cx + 38, rect.y + 112)
 
         # 2-Column Weather Details Grid
         details_y = rect.y + 175
         col1_x = rect.x + 20
-        col2_x = rect.x + 230
+        col2_x = max(rect.x + 285, temp_rect.right + 35) - 35
         line_spacing = 24
         
         # Left Column: Wind, Humidity, Precipitation
@@ -326,11 +327,12 @@ class SmartDashboardApp:
 
         forecast = self.weather_data.get("forecast", [])
         box_w = 96
+        box_h = 150
         
         mouse_pos = pygame.mouse.get_pos()
         for idx, day in enumerate(forecast):
             f_x = rect.x + 20 + idx * (box_w + 10)
-            f_rect = pygame.Rect(f_x, forecast_y + 28, box_w, 145)
+            f_rect = pygame.Rect(f_x, forecast_y + 28, box_w, box_h)
             
             is_hover = self.mouse_active and pygame.mouse.get_focused() and f_rect.collidepoint(mouse_pos)
             bg_color = COLOR_HOVER if is_hover and not self.selected_forecast_day else COLOR_BG
@@ -341,18 +343,18 @@ class SmartDashboardApp:
             if is_hover and not self.selected_forecast_day:
                 pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
 
-            # Day Name & UK Date
-            self.draw_text(day.get("day_name", "Day"), self.font_header, COLOR_GOLD, self.screen, f_rect.centerx, f_rect.y + 8, align="center")
-            self.draw_text(day.get("date_uk", ""), self.font_small, COLOR_TEXT_MUTED, self.screen, f_rect.centerx, f_rect.y + 26, align="center")
+            # Day Name & UK Date with clean padding away from top border
+            self.draw_text(day.get("day_name", "Day"), self.font_header, COLOR_GOLD, self.screen, f_rect.centerx, f_rect.y + 12, align="center")
+            self.draw_text(day.get("date_uk", ""), self.font_small, COLOR_TEXT_MUTED, self.screen, f_rect.centerx, f_rect.y + 34, align="center")
             
             # Vector Weather Icon inside forecast box
             f_desc = day.get("desc", "")
-            render_weather_icon(self.screen, f_desc, f_rect.centerx, f_rect.y + 54, size=18)
+            render_weather_icon(self.screen, f_desc, f_rect.centerx, f_rect.y + 64, size=18)
 
             # Max / Min Temp
-            self.draw_text(f"{day.get('temp_max', 0)}° / {day.get('temp_min', 0)}°", self.font_body, COLOR_TEXT_MAIN, self.screen, f_rect.centerx, f_rect.y + 82, align="center")
+            self.draw_text(f"{day.get('temp_max', 0)}° / {day.get('temp_min', 0)}°", self.font_body, COLOR_TEXT_MAIN, self.screen, f_rect.centerx, f_rect.y + 94, align="center")
             # Rain Probability
-            self.draw_text(f"Rain {day.get('pop', 0)}%", self.font_small, COLOR_HIGHLIGHT, self.screen, f_rect.centerx, f_rect.y + 114, align="center")
+            self.draw_text(f"Rain {day.get('pop', 0)}%", self.font_small, COLOR_HIGHLIGHT, self.screen, f_rect.centerx, f_rect.y + 124, align="center")
             
             self.click_zones.append((f_rect, "FORECAST_DAY", idx))
 
