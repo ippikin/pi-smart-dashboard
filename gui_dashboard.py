@@ -327,7 +327,7 @@ class SmartDashboardApp:
 
         forecast = self.weather_data.get("forecast", [])
         box_w = 96
-        box_h = 150
+        box_h = 146
         
         mouse_pos = pygame.mouse.get_pos()
         for idx, day in enumerate(forecast):
@@ -343,18 +343,18 @@ class SmartDashboardApp:
             if is_hover and not self.selected_forecast_day:
                 pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
 
-            # Day Name & UK Date with clean padding away from top border
-            self.draw_text(day.get("day_name", "Day"), self.font_header, COLOR_GOLD, self.screen, f_rect.centerx, f_rect.y + 12, align="center")
-            self.draw_text(day.get("date_uk", ""), self.font_small, COLOR_TEXT_MUTED, self.screen, f_rect.centerx, f_rect.y + 34, align="center")
+            # Day Name & UK Date - vertically centered within card
+            self.draw_text(day.get("day_name", "Day"), self.font_header, COLOR_GOLD, self.screen, f_rect.centerx, f_rect.y + 15, align="center")
+            self.draw_text(day.get("date_uk", ""), self.font_small, COLOR_TEXT_MUTED, self.screen, f_rect.centerx, f_rect.y + 36, align="center")
             
             # Vector Weather Icon inside forecast box
             f_desc = day.get("desc", "")
-            render_weather_icon(self.screen, f_desc, f_rect.centerx, f_rect.y + 64, size=18)
+            render_weather_icon(self.screen, f_desc, f_rect.centerx, f_rect.y + 68, size=18)
 
             # Max / Min Temp
-            self.draw_text(f"{day.get('temp_max', 0)}° / {day.get('temp_min', 0)}°", self.font_body, COLOR_TEXT_MAIN, self.screen, f_rect.centerx, f_rect.y + 94, align="center")
+            self.draw_text(f"{day.get('temp_max', 0)}° / {day.get('temp_min', 0)}°", self.font_body, COLOR_TEXT_MAIN, self.screen, f_rect.centerx, f_rect.y + 98, align="center")
             # Rain Probability
-            self.draw_text(f"Rain {day.get('pop', 0)}%", self.font_small, COLOR_HIGHLIGHT, self.screen, f_rect.centerx, f_rect.y + 124, align="center")
+            self.draw_text(f"Rain {day.get('pop', 0)}%", self.font_small, COLOR_HIGHLIGHT, self.screen, f_rect.centerx, f_rect.y + 125, align="center")
             
             self.click_zones.append((f_rect, "FORECAST_DAY", idx))
 
